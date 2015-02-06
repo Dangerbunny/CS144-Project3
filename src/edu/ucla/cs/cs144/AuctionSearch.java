@@ -33,6 +33,28 @@ import edu.ucla.cs.cs144.DbManager;
 import edu.ucla.cs.cs144.SearchRegion;
 import edu.ucla.cs.cs144.SearchResult;
 
+class SearchEngine {
+    private IndexSearcher searcher = null;
+    private QueryParser parser = null;
+
+    /** Creates a new instance of SearchEngine */
+    public SearchEngine() throws IOException {
+        searcher = new IndexSearcher(DirectoryReader.open(FSDirectory.open(new File("/var/lib/lucene/"))));
+        parser = new QueryParser("content", new StandardAnalyzer());
+    }
+
+    public TopDocs performSearch(String queryString, int n)
+        throws IOException, ParseException {
+            Query query = parser.parse(queryString);
+            return searcher.search(query, n);
+    }
+
+    public Document getDocument(int docId)
+    throws IOException {
+        return searcher.doc(docId);
+    }
+}
+
 public class AuctionSearch implements IAuctionSearch {
 
 	/* 
@@ -49,11 +71,25 @@ public class AuctionSearch implements IAuctionSearch {
          * placed at src/edu/ucla/cs/cs144.
          *
          */
+
+    SearchEngine engine;
+
+    public AuctionSearch(){
+        engine = new SearchEngine();
+    }
 	
 	public SearchResult[] basicSearch(String query, int numResultsToSkip, 
 			int numResultsToReturn) {
-		// TODO: Your code here!
-		return new SearchResult[0];
+		TopDocs docs = performSearch(query, numResultsToSkip + numResultsToReturn);
+        ScoreDoc[] sDocs = docs.scoreDocs;
+
+        SearchResult[] results = new SearchResult[sDocs.length - numResultsToSkip];
+
+        for(int i = numResultsToSkip, k = 0; i < sDocs.length; i++, k++){
+            Document doc = engine.getDocument(sDocs[i].doc);
+            results[k] = new SearchResult(doc.get("iid"), doc.get("name"));
+        }
+		return results;
 	}
 
 	public SearchResult[] spatialSearch(String query, SearchRegion region,
