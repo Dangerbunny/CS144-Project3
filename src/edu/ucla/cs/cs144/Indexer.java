@@ -22,8 +22,11 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.Version;
 
+
 public class Indexer {
     
+    private IndexWriter indexWriter = null;
+
     /** Creates a new instance of Indexer */
     public Indexer() {
     }
@@ -33,41 +36,68 @@ public class Indexer {
         Connection conn = null;
 
         // create a connection to the database to retrieve Items from MySQL
-	try {
-	    conn = DbManager.getConnection(true);
-	} catch (SQLException ex) {
-	    System.out.println(ex);
-	}
+    	try {
+    	    conn = DbManager.getConnection(true);
+    	} catch (SQLException ex) {
+    	    System.out.println(ex);
+    	}
 
+        HashMap<Long, String> itemCategories;
 
-	/*
-	 * Add your code here to retrieve Items using the connection
-	 * and add corresponding entries to your Lucene inverted indexes.
-         *
-         * You will have to use JDBC API to retrieve MySQL data from Java.
-         * Read our tutorial on JDBC if you do not know how to use JDBC.
-         *
-         * You will also have to use Lucene IndexWriter and Document
-         * classes to create an index and populate it with Items data.
-         * Read our tutorial on Lucene as well if you don't know how.
-         *
-         * As part of this development, you may want to add 
-         * new methods and create additional Java classes. 
-         * If you create new classes, make sure that
-         * the classes become part of "edu.ucla.cs.cs144" package
-         * and place your class source files at src/edu/ucla/cs/cs144/.
-	 * 
-	 */
+    	Statement stmt = con.createStatement();
+        String nameDescQ = "select ItemId, name, description from Item;"
+        String catQ = "select * from Item i, ItemCategory ic where i.ItemId = ic.ItemId;"
 
+        ResultSet rs1 = stmt.executeQuery(nameDescQ);
+        ResultSet rs2 = stmt.executeQuery(catQ);
 
+        while(rs2.next()){
+            long iid = rs2.getLong("ItemId");
+            String cat = rs2.getString("category");
+            String icValue = itemCategories.get(iid);
+            if(icValue != null){
+                icValue += " " + cat;
+                itemCategories.put(iid, icValue)
+            }
+            else{
+                itemCategories.put(iid, cat);                
+            }
+        }
+        while(rs1.next()){
+
+            long iid = rs1.getLong("ItemId");
+            String name = rs1.getString("name");
+            String description = rs1.getString("description");
+            String categories = itemCategories.get(iid);
+
+            IndexWriter writer = getIndexWriter(true);
+            Document doc = new Document();
+            doc.add(new StringField("iid", iid, Field.Store.YES));
+            doc.add(new StringField("name", name), Field.Store.YES));
+
+            String fullSearchableText = name + " " + categories + " " + description;
+            doc.add(new TextField("content", fullSearchableText, Field.Store.NO));
+            writer.addDocument(doc);
+        }
+
+        closeIndexWriter();
         // close the database connection
-	try {
-	    conn.close();
-	} catch (SQLException ex) {
-	    System.out.println(ex);
-	}
+    	try {
+    	    conn.close();
+    	} catch (SQLException ex) {
+    	    System.out.println(ex);
+    	}
     }    
 
+
+    public IndexWriter getIndexWriter(boolean create) throws IOException {
+        if (indexWriter == null) {
+            Directory indexDir = FSDirectory.open(new File("/var/lib/lucene/"));
+            IndexWriterConfig config = new IndexWriterConfig(Version.LUCENE_4_10_2, new StandardAnalyzer());
+            indexWriter = new IndexWriter(indexDir, config);
+        }
+        return indexWriter;
+    }
     public static void main(String args[]) {
         Indexer idx = new Indexer();
         idx.rebuildIndexes();
