@@ -143,9 +143,90 @@ public class AuctionSearch implements IAuctionSearch {
 		return finalRes;
 	}
 
-	public String getXMLDataForItemId(String itemId) {
-		// TODO: Your code here!
+	public String getXMLDataForItemId(String itemId) throws SQLException {
+		
+		Connection conn = null;
+
+        // create a connection to the database to retrieve Items from MySQL
+        try {
+            conn = DbManager.getConnection(true);
+        } catch (SQLException ex) {
+            System.out.println(ex);
+        }
+        
+        String res = "";
+        
+        Statement stmt = conn.createStatement();
+        String iQ = "Select * from Item where ItemId = " + itemId;
+        String catQ = "Select category from ItemCategories where ItemId = " + itemId;
+        String locQ = "Select l.lat, l.lon, l.locText, l.country " + 
+        				" from Location l, ItemLocation i where l.ItemId = " + itemId + " and i.LocId = l.LocId";
+        String sellQ = "Select SellRating, UserId from User u, Item i where i.ItemId = " + itemId +
+        				" and u.UserId = i.sellId";
+        String bidQ = "Select b.time, b.amount, u.UserId, u.BidRating, l.locText, l.country" +
+        				" from Bid b, User u, BidLocation bl, Location l" +
+        				" where b.ItemId = " + itemId + " and b.UserId = u.UserId" +
+        				" and bl.UserId = b.UserId and bl.LocId = l.LocId";
+        ResultSet rs = stmt.executeQuery(iQ);
+        
+        if(rs.next()){
+        	ResultSet catRs = stmt.executeQuery(catQ);
+        	ResultSet locRs = stmt.executeQuery(locQ);
+        	ResultSet sellRs = stmt.executeQuery(sellQ);
+        	ResultSet bidRs = stmt.executeQuery(bidQ);
+        }
+        
+        // close the database connection
+        try {
+            conn.close();
+        } catch (SQLException ex) {
+            System.out.println(ex);
+        }
+        
 		return "";
+	}
+	
+	
+	private String catXML(ResultSet rs) throws SQLException{
+		String res = "";
+		while(rs.next()){
+			res += "  <Category>"+rs.getString("category")+"</Category>\n";
+		}
+		return res;
+	}
+	private String bidXML(ResultSet rs) throws SQLException{
+		String res = "";
+		if(rs.next()){
+			res += "  <Bids>";
+		} else{
+			return "  <Bids />";
+		}
+		do {
+			res += "    <Bid>\n";
+			res += "      <Bidder Rating=\"" + rs.getInt("BidRating") + 
+					"\" UserId=\"" + rs.getString("UserId") + "\"\n>";
+			res += "        <Location>" + rs.getString("locText") + "</Location>\n";
+			res += "        <Country>" + rs.getString("country") + "</Country>\n";
+			res += "      </Bidder>\n";
+			res += "      <Time>" + rs.getTimestamp("time") + "</Time>\n";
+			res += "      <Amount>" + rs.getDouble("amount") + "</Amount>\n";
+			res += "    </Bid>\n";
+		} while(rs.next());
+		res += "  </Bids>";
+		return res;
+	}
+	private String locXML(ResultSet rs) throws SQLException{
+		String res = "";
+		rs.next();
+		res += "  <Location";
+		if(rs.getFloat("lat") != 0){
+			res += " Latitude=\"" + rs.getFloat("lat") + "\"";
+		}
+		if(rs.getFloat("lon") != 0){
+			res += " Latitude=\"" + rs.getFloat("lat") + "\"";
+		}
+		+ rs.getString("locText") + "</Location>"; 
+		
 	}
 	
 	public String echo(String message) {
