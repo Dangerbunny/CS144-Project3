@@ -156,24 +156,42 @@ public class AuctionSearch implements IAuctionSearch {
         
         String res = "";
         
-        Statement stmt = conn.createStatement();
+        Statement iStmt = conn.createStatement();
+        Statement cStmt = conn.createStatement();
+        Statement lStmt = conn.createStatement();
+        Statement sStmt = conn.createStatement();
+        Statement bStmt = conn.createStatement();
+        
         String iQ = "Select * from Item where ItemId = " + itemId;
-        String catQ = "Select category from ItemCategories where ItemId = " + itemId;
+        String catQ = "Select category from ItemCategory where ItemId = " + itemId;
         String locQ = "Select l.lat, l.lon, l.locText, l.country " + 
-        				" from Location l, ItemLocation i where l.ItemId = " + itemId + " and i.LocId = l.LocId";
+        				" from Location l, ItemLocation i where i.ItemId = " + itemId + " and i.LocId = l.LocId";
         String sellQ = "Select SellRating, UserId from User u, Item i where i.ItemId = " + itemId +
         				" and u.UserId = i.sellId";
         String bidQ = "Select b.time, b.amount, u.UserId, u.BidRating, l.locText, l.country" +
         				" from Bid b, User u, BidLocation bl, Location l" +
         				" where b.ItemId = " + itemId + " and b.UserId = u.UserId" +
         				" and bl.UserId = b.UserId and bl.LocId = l.LocId";
-        ResultSet rs = stmt.executeQuery(iQ);
+        ResultSet rs = iStmt.executeQuery(iQ);
         
         if(rs.next()){
-        	ResultSet catRs = stmt.executeQuery(catQ);
-        	ResultSet locRs = stmt.executeQuery(locQ);
-        	ResultSet sellRs = stmt.executeQuery(sellQ);
-        	ResultSet bidRs = stmt.executeQuery(bidQ);
+        	ResultSet catRs = cStmt.executeQuery(catQ);
+        	ResultSet locRs = lStmt.executeQuery(locQ);
+        	ResultSet sellRs = sStmt.executeQuery(sellQ);
+        	ResultSet bidRs = bStmt.executeQuery(bidQ);
+        	res += "<Item ItemId=\"" + rs.getLong("ItemId") +"\">\n";
+        	res += "  <Name>" + rs.getString("name") +"</Name>\n";
+        	res += catXML(catRs);
+        	res += "  <Currently>" + rs.getDouble("currentBid") + "</Currently>\n";
+        	res += "  <First_Bid>" + rs.getDouble("minBid") + "</First_Bid>\n";
+        	res += "  <Number_of_Bids>" + rs.getInt("numBids") + "</Number_of_Bids>\n";
+        	res += bidXML(bidRs);
+        	res += locXML(locRs);
+        	res += "  <Started>" + rs.getTimestamp("startTime") + "</Started>\n";
+            res += "  <Ends>" + rs.getTimestamp("endTime") + "</Ends>\n";
+            //res += sellXml(sellRs);
+            res += "  <Description>" + rs.getString("description") + "</Description>\n";
+            res += "</Item>\n";
         }
         
         // close the database connection
@@ -183,7 +201,7 @@ public class AuctionSearch implements IAuctionSearch {
             System.out.println(ex);
         }
         
-		return "";
+		return res;
 	}
 	
 	
@@ -223,10 +241,11 @@ public class AuctionSearch implements IAuctionSearch {
 			res += " Latitude=\"" + rs.getFloat("lat") + "\"";
 		}
 		if(rs.getFloat("lon") != 0){
-			res += " Latitude=\"" + rs.getFloat("lat") + "\"";
+			res += " Longitude=\"" + rs.getFloat("lon") + "\"";
 		}
-		+ rs.getString("locText") + "</Location>"; 
-		
+		res += ">"+rs.getString("locText") + "</Location>\n";
+		res += "  <Country>" + rs.getString("country") + "</Country>\n"; 
+		return res;
 	}
 	
 	public String echo(String message) {

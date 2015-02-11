@@ -56,7 +56,13 @@ public class AuctionSearchTest {
 		}
 		
 		String itemId = "1497595357";
-		String item = as.getXMLDataForItemId(itemId);
+		String item = null;
+		try {
+			item = as.getXMLDataForItemId(itemId);
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		System.out.println("XML data for ItemId: " + itemId);
 		System.out.println(item);
 
