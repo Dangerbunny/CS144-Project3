@@ -247,6 +247,12 @@ public class AuctionSearch implements IAuctionSearch {
 		res += "  <Country>" + rs.getString("country") + "</Country>\n"; 
 		return res;
 	}
+	private String sellXML(ResultSet rs) throws SQLException{
+		String res = "";
+		rs.next();
+		res += "  <Seller Rating=\"" + rs.getString("SellRating") + "\" UserID=\"" + rs.getString("UserId") + "\" />";
+		return res;
+	}
 	
 	public String echo(String message) {
 		return message;
