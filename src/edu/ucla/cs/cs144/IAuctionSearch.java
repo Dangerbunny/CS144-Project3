@@ -1,5 +1,10 @@
 package edu.ucla.cs.cs144;
 
+import java.io.IOException;
+import java.sql.SQLException;
+
+import org.apache.lucene.queryparser.classic.ParseException;
+
 import edu.ucla.cs.cs144.SearchRegion;
 import edu.ucla.cs.cs144.SearchResult;
 
@@ -15,9 +20,11 @@ public interface IAuctionSearch {
 	 * @return An array of at most numResultsToReturn SearchResult objects 
 	 * representing the results of the query after skipping numResultsToSkip
 	 * SearchResult objects.
+	 * @throws ParseException 
+	 * @throws IOException 
 	 */
 	public SearchResult[] basicSearch(String query, int numResultsToSkip, 
-			int numResultsToReturn);
+			int numResultsToReturn) throws IOException, ParseException;
 	
 	/**
 	 * Searhc for all items with the given keywords, which are located 
@@ -32,9 +39,12 @@ public interface IAuctionSearch {
 	 * @return An array of at most numResultsToReturn SearchResult objects 
 	 * representing the results of the query after skipping numResultsToSkip
 	 * SearchResult objects.
+	 * @throws SQLException 
+	 * @throws ParseException 
+	 * @throws IOException 
 	 */
 	public SearchResult[] spatialSearch(String query, SearchRegion region, 
-			int numResultsToSkip, int numResultsToReturn);
+			int numResultsToSkip, int numResultsToReturn) throws SQLException, IOException, ParseException;
 	
 	/**
 	 * Rebuilds an Item XML Element (and all of its sub-Elements), for the given

@@ -1,37 +1,24 @@
 package edu.ucla.cs.cs144;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.io.File;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.ArrayList;
-import java.util.List;
-import java.text.SimpleDateFormat;
-
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.HashMap;
+import java.util.ArrayList;
 
-import org.apache.lucene.document.Document;
-import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.apache.lucene.document.Document;
 import org.apache.lucene.index.DirectoryReader;
-import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.queryparser.classic.ParseException;
-import org.apache.lucene.search.Query;
-import org.apache.lucene.search.TopDocs;
-import org.apache.lucene.search.ScoreDoc;
+import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.store.Directory;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.ScoreDoc;
+import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.FSDirectory;
-import org.apache.lucene.util.Version;
-
-import edu.ucla.cs.cs144.DbManager;
-import edu.ucla.cs.cs144.SearchRegion;
-import edu.ucla.cs.cs144.SearchResult;
 
 class SearchEngine {
     private IndexSearcher searcher = null;
@@ -75,12 +62,17 @@ public class AuctionSearch implements IAuctionSearch {
     SearchEngine engine;
 
     public AuctionSearch(){
-        engine = new SearchEngine();
+        try {
+			engine = new SearchEngine();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
     }
 	
 	public SearchResult[] basicSearch(String query, int numResultsToSkip, 
-			int numResultsToReturn) {
-		TopDocs docs = performSearch(query, numResultsToSkip + numResultsToReturn);
+			int numResultsToReturn) throws IOException, ParseException {
+		TopDocs docs = engine.performSearch(query, numResultsToSkip + numResultsToReturn);
         ScoreDoc[] sDocs = docs.scoreDocs;
 
         SearchResult[] results = new SearchResult[sDocs.length - numResultsToSkip];
@@ -93,9 +85,62 @@ public class AuctionSearch implements IAuctionSearch {
 	}
 
 	public SearchResult[] spatialSearch(String query, SearchRegion region,
-			int numResultsToSkip, int numResultsToReturn) {
-		// TODO: Your code here!
-		return new SearchResult[0];
+			int numResultsToSkip, int numResultsToReturn) throws SQLException, IOException, ParseException {
+
+        Connection conn = null;
+
+        // create a connection to the database to retrieve Items from MySQL
+        try {
+            conn = DbManager.getConnection(true);
+        } catch (SQLException ex) {
+            System.out.println(ex);
+        }
+
+        Statement stmt = conn.createStatement();
+        String locQuery = "select ItemId from SpatialLocation where X(locPt) > " + region.getLx()
+                            + " and X(locPt) < " + region.getRx() + " and Y(locPt) > "
+                            + region.getLy() + " and Y(LocPt) < " + region.getRy();
+        ResultSet rs = stmt.executeQuery(locQuery);
+
+        int size = 0;
+        while(rs.next())
+            size++;
+        rs.first();
+        rs.previous();
+
+        SearchResult[] basicResults = basicSearch(query, 0, size);
+        ArrayList<SearchResult> finalResList = new ArrayList<SearchResult>();
+
+        HashMap<String, SearchResult> resMap = new HashMap<String,SearchResult>();
+
+        for(SearchResult res : basicResults){
+            resMap.put(res.getItemId(), res);
+        }
+
+        for(int i = 0; i < numResultsToSkip; i++)
+            rs.next();
+
+        while(rs.next()){
+            String iid = "" + rs.getLong("ItemId");
+            if(resMap.get(iid) != null)
+                finalResList.add(resMap.get(iid));
+        }
+
+
+        // close the database connection
+        try {
+            conn.close();
+        } catch (SQLException ex) {
+            System.out.println(ex);
+        }
+
+        SearchResult[] finalRes = new SearchResult[finalResList.size()];
+        int counter = 0;
+        for(SearchResult res : finalResList){
+            finalRes[counter++] = res;
+        }
+
+		return finalRes;
 	}
 
 	public String getXMLDataForItemId(String itemId) {
