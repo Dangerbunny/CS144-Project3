@@ -20,11 +20,14 @@ public class AuctionSearchTest {
 		String reply = as.echo(message);
 		System.out.println("Reply: " + reply);
 		
-		String query = "camera";
+		String query = "superman";
 		SearchResult[] basicResults = null;
 		try {
 			basicResults = as.basicSearch(query, 0, 20);
-		} catch (IOException | ParseException e) {
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (ParseException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
@@ -55,8 +58,14 @@ public class AuctionSearchTest {
 			System.out.println(result.getItemId() + ": " + result.getName());
 		}
 		
-		String itemId = "1497595357";
-		String item = as.getXMLDataForItemId(itemId);
+		String itemId = "1043495702";
+		String item = null;
+		try {
+			item = as.getXMLDataForItemId(itemId);
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		System.out.println("XML data for ItemId: " + itemId);
 		System.out.println(item);
 

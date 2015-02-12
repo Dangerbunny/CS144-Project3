@@ -6,6 +6,9 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.text.NumberFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.ArrayList;
 
@@ -61,6 +64,13 @@ public class AuctionSearch implements IAuctionSearch {
 
     SearchEngine engine;
 
+    SimpleDateFormat outFormatter =
+            new SimpleDateFormat("MMM-dd-yy HH:mm:ss");
+    SimpleDateFormat inFormatter = 
+    		new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    
+    NumberFormat fmt = NumberFormat.getCurrencyInstance();
+    
     public AuctionSearch(){
         try {
 			engine = new SearchEngine();
@@ -156,24 +166,70 @@ public class AuctionSearch implements IAuctionSearch {
         
         String res = "";
         
-        Statement stmt = conn.createStatement();
+        Statement iStmt = conn.createStatement();
+        Statement cStmt = conn.createStatement();
+        Statement lStmt = conn.createStatement();
+        Statement sStmt = conn.createStatement();
+        Statement bUStmt = conn.createStatement();
+        Statement bLStmt = conn.createStatement();
+        
         String iQ = "Select * from Item where ItemId = " + itemId;
-        String catQ = "Select category from ItemCategories where ItemId = " + itemId;
+        String catQ = "Select category from ItemCategory where ItemId = " + itemId;
         String locQ = "Select l.lat, l.lon, l.locText, l.country " + 
-        				" from Location l, ItemLocation i where l.ItemId = " + itemId + " and i.LocId = l.LocId";
+        				" from Location l, ItemLocation i where i.ItemId = " + itemId + " and i.LocId = l.LocId";
         String sellQ = "Select SellRating, UserId from User u, Item i where i.ItemId = " + itemId +
         				" and u.UserId = i.sellId";
-        String bidQ = "Select b.time, b.amount, u.UserId, u.BidRating, l.locText, l.country" +
-        				" from Bid b, User u, BidLocation bl, Location l" +
-        				" where b.ItemId = " + itemId + " and b.UserId = u.UserId" +
-        				" and bl.UserId = b.UserId and bl.LocId = l.LocId";
-        ResultSet rs = stmt.executeQuery(iQ);
+        String bidUQ = "Select b.time, b.amount, u.UserId, u.BidRating, l.locText, l.country" +
+        		" from Bid b, User u, BidLocation bl, Location l" +
+        		" where b.ItemId = " + itemId + " and b.UserId = u.UserId" +
+        		" and bl.UserId = b.UserId and bl.LocId = l.LocId";;
+//        		"Select b.time, b.amount, u.UserId, u.BidRating" +
+//        				" from Bid b, User u" +
+//        				" where b.ItemId = " + itemId + " and b.UserId = u.UserId";
+////        String bidLQ = "Select l.locText, l.country" +
+//						" from Bid b, BidLocation bl, Location l" +
+//						" where b.ItemId = " + itemId +
+//						" and bl.UserId = b.UserId and bl.LocId = l.LocId";
+        
+       
+        
+        ResultSet rs = iStmt.executeQuery(iQ);
         
         if(rs.next()){
-        	ResultSet catRs = stmt.executeQuery(catQ);
-        	ResultSet locRs = stmt.executeQuery(locQ);
-        	ResultSet sellRs = stmt.executeQuery(sellQ);
-        	ResultSet bidRs = stmt.executeQuery(bidQ);
+        	ResultSet catRs = cStmt.executeQuery(catQ);
+        	ResultSet locRs = lStmt.executeQuery(locQ);
+        	ResultSet sellRs = sStmt.executeQuery(sellQ);
+        	ResultSet bidURs = bUStmt.executeQuery(bidUQ);
+//        	ResultSet bidLRs = bLStmt.executeQuery(bidLQ);
+        	res += "<Item ItemId=\"" + rs.getLong("ItemId") +"\">\n";
+        	res += "  <Name>" + xmlFormatted(rs.getString("name")) +"</Name>\n";
+        	res += catXML(catRs);
+        	res += "  <Currently>" + fmt.format(rs.getDouble("currentBid")) + "</Currently>\n";
+        	if(rs.getDouble("buyout") != 0){
+        		res += "  <Buy_Price>" + fmt.format(rs.getDouble("buyout")) + "</Buy_Price>\n"; 
+        	}
+        	res += "  <First_Bid>" + fmt.format(rs.getDouble("minBid")) + "</First_Bid>\n";
+        	res += "  <Number_of_Bids>" + rs.getInt("numBids") + "</Number_of_Bids>\n";
+        	res += bidXML(bidURs);
+        	res += locXML(locRs);
+        	
+        	Date sTime = null, eTime = null;
+        	String stString = null, etString = null;
+			try {
+				sTime = inFormatter.parse(rs.getTimestamp("startTime").toString());
+				eTime = inFormatter.parse(rs.getTimestamp("endTime").toString());
+			} catch (java.text.ParseException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			stString = outFormatter.format(sTime);
+			etString = outFormatter.format(eTime);
+        	
+        	res += "  <Started>" + stString + "</Started>\n";
+            res += "  <Ends>" + etString + "</Ends>\n";
+            res += sellXML(sellRs);
+            res += "  <Description>" + xmlFormatted(rs.getString("description")) + "</Description>\n";
+            res += "</Item>\n";
         }
         
         // close the database connection
@@ -183,36 +239,46 @@ public class AuctionSearch implements IAuctionSearch {
             System.out.println(ex);
         }
         
-		return "";
+		return res;
 	}
 	
 	
 	private String catXML(ResultSet rs) throws SQLException{
 		String res = "";
 		while(rs.next()){
-			res += "  <Category>"+rs.getString("category")+"</Category>\n";
+			res += "  <Category>"+xmlFormatted(rs.getString("category"))+"</Category>\n";
 		}
 		return res;
 	}
-	private String bidXML(ResultSet rs) throws SQLException{
+	private String bidXML(ResultSet rsU) throws SQLException{
 		String res = "";
-		if(rs.next()){
-			res += "  <Bids>";
+		if(rsU.next()){
+			res += "  <Bids>\n";
 		} else{
-			return "  <Bids />";
+			return "  <Bids />\n";
 		}
 		do {
 			res += "    <Bid>\n";
-			res += "      <Bidder Rating=\"" + rs.getInt("BidRating") + 
-					"\" UserId=\"" + rs.getString("UserId") + "\"\n>";
-			res += "        <Location>" + rs.getString("locText") + "</Location>\n";
-			res += "        <Country>" + rs.getString("country") + "</Country>\n";
+			res += "      <Bidder Rating=\"" + rsU.getInt("BidRating") + 
+					"\" UserId=\"" + rsU.getString("UserId") + "\">\n";
+			res += "        <Location>" + xmlFormatted(rsU.getString("locText")) + "</Location>\n";
+			res += "        <Country>" + rsU.getString("country") + "</Country>\n";
 			res += "      </Bidder>\n";
-			res += "      <Time>" + rs.getTimestamp("time") + "</Time>\n";
-			res += "      <Amount>" + rs.getDouble("amount") + "</Amount>\n";
+			
+			Date time = null;
+			try {
+				time = inFormatter.parse(rsU.getTimestamp("time").toString());
+			} catch (java.text.ParseException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			String outTime = outFormatter.format(time);
+			
+			res += "      <Time>" + outTime + "</Time>\n";
+			res += "      <Amount>" + fmt.format(rsU.getDouble("amount")) + "</Amount>\n";
 			res += "    </Bid>\n";
-		} while(rs.next());
-		res += "  </Bids>";
+		} while(rsU.next());
+		res += "  </Bids>\n";
 		return res;
 	}
 	private String locXML(ResultSet rs) throws SQLException{
@@ -223,16 +289,26 @@ public class AuctionSearch implements IAuctionSearch {
 			res += " Latitude=\"" + rs.getFloat("lat") + "\"";
 		}
 		if(rs.getFloat("lon") != 0){
-			res += " Latitude=\"" + rs.getFloat("lat") + "\"";
+			res += " Longitude=\"" + rs.getFloat("lon") + "\"";
 		}
-		+ rs.getString("locText") + "</Location>"; 
-		
+		res += ">"+xmlFormatted(rs.getString("locText")) + "</Location>\n";
+		res += "  <Country>" + rs.getString("country") + "</Country>\n"; 
+		return res;
 	}
 	private String sellXML(ResultSet rs) throws SQLException{
 		String res = "";
 		rs.next();
-		res += "  <Seller Rating=\"" + rs.getString("SellRating") + "\" UserID=\"" + rs.getString("UserId") + "\" />";
+		res += "  <Seller Rating=\"" + rs.getString("SellRating") + "\" UserID=\"" + rs.getString("UserId") + "\" />\n";
 		return res;
+	}
+
+	private String xmlFormatted(String input){
+		input = input.replace("&", "&amp;");
+		input = input.replace("'", "&apos;");
+		input = input.replace("<", "&lt;");
+		input = input.replace(">", "&gt;");
+		input = input.replace("\"", "&quot;");
+		return input;
 	}
 	
 	public String echo(String message) {
