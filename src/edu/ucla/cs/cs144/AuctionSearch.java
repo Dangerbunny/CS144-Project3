@@ -179,18 +179,19 @@ public class AuctionSearch implements IAuctionSearch {
         				" from Location l, ItemLocation i where i.ItemId = " + itemId + " and i.LocId = l.LocId";
         String sellQ = "Select SellRating, UserId from User u, Item i where i.ItemId = " + itemId +
         				" and u.UserId = i.sellId";
-        String bidUQ = "Select b.time, b.amount, u.UserId, u.BidRating" +
-        				" from Bid b, User u" +
-        				" where b.ItemId = " + itemId + " and b.UserId = u.UserId";
-        String bidLQ = "Select l.locText, l.country" +
-						" from Bid b, BidLocation bl, Location l" +
-						" where b.ItemId = " + itemId +
-						" and bl.UserId = b.UserId and bl.LocId = l.LocId";
+        String bidUQ = "Select b.time, b.amount, u.UserId, u.BidRating, l.locText, l.country" +
+        		" from Bid b, User u, BidLocation bl, Location l" +
+        		" where b.ItemId = " + itemId + " and b.UserId = u.UserId" +
+        		" and bl.UserId = b.UserId and bl.LocId = l.LocId";;
+//        		"Select b.time, b.amount, u.UserId, u.BidRating" +
+//        				" from Bid b, User u" +
+//        				" where b.ItemId = " + itemId + " and b.UserId = u.UserId";
+////        String bidLQ = "Select l.locText, l.country" +
+//						" from Bid b, BidLocation bl, Location l" +
+//						" where b.ItemId = " + itemId +
+//						" and bl.UserId = b.UserId and bl.LocId = l.LocId";
         
-//        "Select b.time, b.amount, u.UserId, u.BidRating, l.locText, l.country" +
-//		" from Bid b, User u, BidLocation bl, Location l" +
-//		" where b.ItemId = " + itemId + " and b.UserId = u.UserId" +
-//		" and bl.UserId = b.UserId and bl.LocId = l.LocId";
+       
         
         ResultSet rs = iStmt.executeQuery(iQ);
         
@@ -199,7 +200,7 @@ public class AuctionSearch implements IAuctionSearch {
         	ResultSet locRs = lStmt.executeQuery(locQ);
         	ResultSet sellRs = sStmt.executeQuery(sellQ);
         	ResultSet bidURs = bUStmt.executeQuery(bidUQ);
-        	ResultSet bidLRs = bLStmt.executeQuery(bidLQ);
+//        	ResultSet bidLRs = bLStmt.executeQuery(bidLQ);
         	res += "<Item ItemId=\"" + rs.getLong("ItemId") +"\">\n";
         	res += "  <Name>" + xmlFormatted(rs.getString("name")) +"</Name>\n";
         	res += catXML(catRs);
@@ -209,7 +210,7 @@ public class AuctionSearch implements IAuctionSearch {
         	}
         	res += "  <First_Bid>" + fmt.format(rs.getDouble("minBid")) + "</First_Bid>\n";
         	res += "  <Number_of_Bids>" + rs.getInt("numBids") + "</Number_of_Bids>\n";
-        	res += bidXML(bidURs, bidLRs);
+        	res += bidXML(bidURs);
         	res += locXML(locRs);
         	
         	Date sTime = null, eTime = null;
@@ -249,20 +250,19 @@ public class AuctionSearch implements IAuctionSearch {
 		}
 		return res;
 	}
-	private String bidXML(ResultSet rsU, ResultSet rsL) throws SQLException{
+	private String bidXML(ResultSet rsU) throws SQLException{
 		String res = "";
-		if(rsU.next() && rsL.next()){
+		if(rsU.next()){
 			res += "  <Bids>\n";
 		} else{
-			System.out.println("RSU: " + rsU.getInt("BidRating") + " RSL: " + rsL.getString("locText"));
 			return "  <Bids />\n";
 		}
 		do {
 			res += "    <Bid>\n";
 			res += "      <Bidder Rating=\"" + rsU.getInt("BidRating") + 
 					"\" UserId=\"" + rsU.getString("UserId") + "\">\n";
-			res += "        <Location>" + xmlFormatted(rsL.getString("locText")) + "</Location>\n";
-			res += "        <Country>" + rsL.getString("country") + "</Country>\n";
+			res += "        <Location>" + xmlFormatted(rsU.getString("locText")) + "</Location>\n";
+			res += "        <Country>" + rsU.getString("country") + "</Country>\n";
 			res += "      </Bidder>\n";
 			
 			Date time = null;
@@ -277,7 +277,7 @@ public class AuctionSearch implements IAuctionSearch {
 			res += "      <Time>" + outTime + "</Time>\n";
 			res += "      <Amount>" + fmt.format(rsU.getDouble("amount")) + "</Amount>\n";
 			res += "    </Bid>\n";
-		} while(rsU.next() && rsL.next());
+		} while(rsU.next());
 		res += "  </Bids>\n";
 		return res;
 	}
