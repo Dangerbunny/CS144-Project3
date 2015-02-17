@@ -109,7 +109,7 @@ public class AuctionSearch implements IAuctionSearch {
         Statement stmt = conn.createStatement();
         String locQuery = "select ItemId from SpatialLocation where X(locPt) > " + region.getLx()
                             + " and X(locPt) < " + region.getRx() + " and Y(locPt) > "
-                            + region.getLy() + " and Y(LocPt) < " + region.getRy();
+                            + region.getLy() + " and Y(locPt) < " + region.getRy();
         ResultSet rs = stmt.executeQuery(locQuery);
 
         int size = 0;
