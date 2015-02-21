@@ -260,7 +260,7 @@ public class AuctionSearch implements IAuctionSearch {
 		do {
 			res += "    <Bid>\n";
 			res += "      <Bidder Rating=\"" + rsU.getInt("BidRating") + 
-					"\" UserId=\"" + rsU.getString("UserId") + "\">\n";
+					"\" UserID=\"" + rsU.getString("UserId") + "\">\n";
 			res += "        <Location>" + xmlFormatted(rsU.getString("locText")) + "</Location>\n";
 			res += "        <Country>" + rsU.getString("country") + "</Country>\n";
 			res += "      </Bidder>\n";
